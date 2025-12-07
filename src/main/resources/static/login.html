@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Đăng nhập - Quản Lý Nhà Hàng</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    .login-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, #07102a 0%, #071b24 100%);
+      padding: 20px;
+    }
+    
+    .login-card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 40px;
+      width: 100%;
+      max-width: 420px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    
+    .login-header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    
+    .login-logo {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, var(--accent), #7c3aed);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 24px;
+      color: #04202a;
+      margin: 0 auto 16px;
+    }
+    
+    .login-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 0 0 8px;
+      color: #e6eef6;
+    }
+    
+    .login-subtitle {
+      font-size: 14px;
+      color: var(--muted);
+      margin: 0;
+    }
+    
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .form-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: #e6eef6;
+    }
+    
+    .form-input {
+      background: rgba(11, 18, 32, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 12px 16px;
+      border-radius: 10px;
+      color: #e6eef6;
+      font-size: 14px;
+      font-family: inherit;
+      width: 100%;
+      transition: all 0.2s;
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: rgba(11, 18, 32, 1);
+      box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2);
+    }
+    
+    .login-button {
+      background: linear-gradient(90deg, var(--accent), #3b82f6);
+      padding: 12px 24px;
+      border-radius: 10px;
+      color: #04202a;
+      border: 0;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 16px;
+      transition: opacity 0.2s;
+      margin-top: 8px;
+    }
+    
+    .login-button:hover {
+      opacity: 0.9;
+    }
+    
+    .login-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .error-message {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: var(--danger);
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      display: none;
+      margin-bottom: 16px;
+    }
+    
+    .error-message.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-logo">RM</div>
+        <h1 class="login-title">Đăng nhập</h1>
+        <p class="login-subtitle">Hệ thống Quản lý Nhà hàng</p>
+      </div>
+      
+      <div id="errorMessage" class="error-message"></div>
+      
+      <form id="loginForm" class="login-form" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label class="form-label" for="account">Tài khoản</label>
+          <input 
+            type="text" 
+            id="account" 
+            name="account" 
+            class="form-input" 
+            placeholder="Nhập tài khoản" 
+            required 
+            autocomplete="username"
+            autofocus />
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="password">Mật khẩu</label>
+          <input 
+            type="password" 
+            id="password" 
+            name="password" 
+            class="form-input" 
+            placeholder="Nhập mật khẩu" 
+            required 
+            autocomplete="current-password" />
+        </div>
+        
+        <button type="submit" class="login-button" id="loginButton">
+          Đăng nhập
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    // Kiểm tra nếu đã đăng nhập thì redirect đến index
+    if (sessionStorage.getItem('employeeId')) {
+      window.location.href = '/index.html';
+    }
+
+    async function handleLogin(event) {
+      event.preventDefault();
+      
+      const account = document.getElementById('account').value.trim();
+      const password = document.getElementById('password').value;
+      const errorMessage = document.getElementById('errorMessage');
+      const loginButton = document.getElementById('loginButton');
+      
+      // Ẩn thông báo lỗi
+      errorMessage.classList.remove('show');
+      errorMessage.textContent = '';
+      
+      // Disable button
+      loginButton.disabled = true;
+      loginButton.textContent = 'Đang đăng nhập...';
+      
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ account, password })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          // Lưu thông tin đăng nhập vào sessionStorage
+          sessionStorage.setItem('employeeId', data.employee.id);
+          sessionStorage.setItem('employeeName', data.employee.name);
+          sessionStorage.setItem('employeeRole', data.employee.role);
+          sessionStorage.setItem('isAuthenticated', 'true');
+          
+          // Redirect đến trang index
+          window.location.href = '/index.html';
+        } else {
+          // Hiển thị lỗi
+          errorMessage.textContent = data.message || 'Tài khoản hoặc mật khẩu không đúng';
+          errorMessage.classList.add('show');
+          loginButton.disabled = false;
+          loginButton.textContent = 'Đăng nhập';
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        errorMessage.textContent = 'Lỗi kết nối. Vui lòng thử lại sau.';
+        errorMessage.classList.add('show');
+        loginButton.disabled = false;
+        loginButton.textContent = 'Đăng nhập';
+      }
+    }
+  </script>
+</body>
+</html>
+

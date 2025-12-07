@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Thanh toán</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <section id="payments" class="view">
+    <div class="panel">
+      <h3 style="margin-top:0">Thanh toán</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="small">Quản lý thanh toán và doanh thu</div>
+        <div style="display:flex;gap:8px;">
+          <button class="pill" onclick="loadPayments();" title="Làm mới">⟳</button>
+          <button class="btn" onclick="openModal('newPayment')">+ Thêm Thanh toán</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Đơn hàng</th>
+            <th>Số tiền</th>
+            <th>Phương thức</th>
+            <th>Thời gian</th>
+          </tr>
+        </thead>
+        <tbody id="paymentsTable">
+          <tr><td colspan="5" class="loading">Đang tải...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    </section>
+      <footer>© 2025 Restaurant Manager — Giao diện quản lý nhà hàng</footer>
+    </main>
+  </div>
+
+  <div id="modalBackdrop" class="modal-backdrop" onclick="closeModal(event)">
+    <div id="modalContent" class="modal" onclick="event.stopPropagation()"></div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    let orders = [];
+
+    async function loadOrders() {
+      try {
+        orders = await api.getOrders();
+      } catch (error) {
+        console.error('Error loading orders:', error);
+      }
+    }
+
+    async function loadPayments() {
+      try {
+        const payments = await api.getPayments();
+        const tbody = document.getElementById('paymentsTable');
+        
+        if (payments.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Chưa có thanh toán nào</td></tr>';
+        } else {
+          tbody.innerHTML = payments.map((p, i) => {
+            const date = p.createdAt ? new Date(p.createdAt).toLocaleString('vi-VN') : '-';
+            return `
+              <tr>
+                <td>${i + 1}</td>
+                <td>${p.order?.id || '-'}</td>
+                <td>₫ ${(parseFloat(p.amount) || 0).toLocaleString('vi-VN')}</td>
+                <td>${p.method || '-'}</td>
+                <td>${date}</td>
+              </tr>
+            `;
+          }).join('');
+        }
+      } catch (error) {
+        console.error('Error loading payments:', error);
+        document.getElementById('paymentsTable').innerHTML = '<tr><td colspan="5" class="empty-state">Lỗi khi tải dữ liệu</td></tr>';
+      }
+    }
+
+    function openModal(type) {
+      const backdrop = document.getElementById('modalBackdrop');
+      const content = document.getElementById('modalContent');
+      
+      if (type === 'newPayment') {
+        const orderOptions = orders.map(o => 
+          `<option value="${o.id}">${o.id} - ${o.customer?.name || ''} - ₫${(parseFloat(o.totalAmount) || 0).toLocaleString('vi-VN')}</option>`
+        ).join('');
+        
+        content.innerHTML = `
+          <h3>Thêm thanh toán</h3>
+          <form id="paymentForm" onsubmit="savePayment(event)">
+            <div style="margin-top:10px">
+              <select class="input" name="orderId" required>
+                <option value="">Chọn đơn hàng</option>
+                ${orderOptions}
+              </select>
+            </div>
+            <div class="form-row" style="margin-top:10px">
+              <input class="input" type="number" name="amount" step="0.01" placeholder="Số tiền" required />
+              <select class="input" name="method" required>
+                <option value="cash">Tiền mặt</option>
+                <option value="card">Thẻ</option>
+                <option value="banking">Chuyển khoản</option>
+                <option value="e_wallet">Ví điện tử</option>
+              </select>
+            </div>
+            <div class="modal-actions">
+              <button type="button" onclick="closeModal()" class="pill">Hủy</button>
+              <button type="submit" class="btn">Lưu</button>
+            </div>
+          </form>
+        `;
+      }
+      
+      backdrop.style.display = 'flex';
+    }
+
+    async function savePayment(event) {
+      event.preventDefault();
+      const form = event.target;
+      const formData = new FormData(form);
+      const payment = {
+        order: { id: formData.get('orderId') },
+        amount: parseFloat(formData.get('amount')),
+        method: formData.get('method')
+      };
+
+      try {
+        await api.createPayment(payment);
+        closeModal();
+        loadPayments();
+      } catch (error) {
+        alert('Lỗi khi lưu thanh toán: ' + error.message);
+      }
+    }
+
+    function closeModal(e) {
+      const backdrop = document.getElementById('modalBackdrop');
+      if (e && e.target === backdrop) return;
+      backdrop.style.display = 'none';
+    }
+
+    loadOrders().then(() => loadPayments());
+  </script>
+</body>
+</html>
+

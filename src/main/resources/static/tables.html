@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Trạng thái bàn</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">RM</div>
+        <div>
+          <div style="font-weight:700">Quản Lý Nhà Hàng</div>
+          <div class="small">v1.0 • Spring Boot + MongoDB</div>
+        </div>
+      </div>
+      <nav class="nav">
+        <a href="/tables.html" class="active">🪑 Trạng thái bàn</a>
+        <a href="/menu.html">📋 Dịch vụ</a>
+        <a href="/orders.html">🧾 Hóa đơn</a>
+        <a href="/customers.html">👥 Khách hàng</a>
+        <a href="/dashboard.html">📊 Thống kê</a>
+        <a href="/employees.html">👨‍🍳 Nhân viên</a>
+      </nav>
+      <div style="margin-top:20px" class="small">Trạng thái</div>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap" id="statusPills">
+        <div class="pill">Đang tải...</div>
+      </div>
+    </aside>
+    <main class="main">
+      <header>
+        <div style="display:flex;gap:12px;align-items:center">
+          <h2 id="pageTitle">Trạng thái bàn</h2>
+          <div class="small">/ Quản lý bàn</div>
+        </div>
+        <div class="actions">
+          <div class="search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21 21l-4.35-4.35" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <input placeholder="Tìm kiếm..." id="globalSearch" />
+          </div>
+          <button class="btn" onclick="window.location.reload()">⟳ Làm mới</button>
+        </div>
+      </header>
+      <section id="tables" class="view">
+        <div class="panel">
+          <h3 style="margin-top:0">Bảng điều khiển Bàn</h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div class="small">Quản lý bố trí bàn, trạng thái</div>
+            <div><button class="btn" onclick="openModal('newTable')">+ Thêm Bàn</button></div>
+          </div>
+          <div id="tablesGrid" class="tables-card-grid">
+            <div class="loading">Đang tải...</div>
+          </div>
+        </div>
+      </section>
+
+      <footer>© 2025 Quản Lý Nhà Hàng — Giao diện quản lý nhà hàng</footer>
+    </main>
+  </div>
+
+  <!-- Modal -->
+  <div id="modalBackdrop" class="modal-backdrop" onclick="closeModal(event)">
+    <div id="modalContent" class="modal" onclick="event.stopPropagation()"></div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+  <script src="/js/pages.js"></script>
+  <script>
+    let editingTableId = null;
+
+    function openModal(type, id) {
+      const backdrop = document.getElementById('modalBackdrop');
+      const content = document.getElementById('modalContent');
+      
+      if (type === 'newTable') {
+        editingTableId = null;
+        content.innerHTML = `
+          <h3>Thêm bàn mới</h3>
+          <form id="tableForm" onsubmit="saveTable(event)">
+            <div class="form-row">
+              <input class="input" name="name" placeholder="Tên bàn" required />
+              <input class="input" name="area" placeholder="Khu vực" required />
+            </div>
+            <div style="margin-top:10px">
+              <select class="input" name="status" required>
+                <option value="Trống">Trống</option>
+                <option value="Đặt trước">Đặt trước</option>
+                <option value="Đang sử dụng">Đang sử dụng</option>
+                <option value="Sửa chữa">Sửa chữa</option>
+              </select>
+            </div>
+            <div class="modal-actions">
+              <button type="button" onclick="closeModal()" class="pill">Hủy</button>
+              <button type="submit" class="btn">Lưu</button>
+            </div>
+          </form>
+        `;
+      } else if (type === 'editTable') {
+        editingTableId = id;
+        api.getTableById(id).then(table => {
+          if (table) {
+            const currentStatus = table.status || 'Trống';
+            content.innerHTML = `
+              <h3>Chỉnh sửa bàn</h3>
+              <form id="tableForm" onsubmit="saveTable(event)">
+                <div class="form-row">
+                  <input class="input" name="name" value="${table.name || ''}" placeholder="Tên bàn" required />
+                  <input class="input" name="area" value="${table.area || ''}" placeholder="Khu vực" required />
+                </div>
+                <div style="margin-top:10px">
+                  <select class="input" name="status" required>
+                    <option value="Trống" ${currentStatus === 'Trống' ? 'selected' : ''}>Trống</option>
+                    <option value="Đặt trước" ${currentStatus === 'Đặt trước' ? 'selected' : ''}>Đặt trước</option>
+                    <option value="Đang sử dụng" ${currentStatus === 'Đang sử dụng' ? 'selected' : ''}>Đang sử dụng</option>
+                    <option value="Sửa chữa" ${currentStatus === 'Sửa chữa' ? 'selected' : ''}>Sửa chữa</option>
+                  </select>
+                </div>
+                <div class="modal-actions">
+                  <button type="button" onclick="closeModal()" class="pill">Hủy</button>
+                  <button type="submit" class="btn">Cập nhật</button>
+                </div>
+              </form>
+            `;
+          }
+        });
+      }
+      
+      backdrop.style.display = 'flex';
+    }
+
+    async function saveTable(event) {
+      event.preventDefault();
+      const form = event.target;
+      const formData = new FormData(form);
+      const table = {
+        name: formData.get('name'),
+        area: formData.get('area'),
+        status: formData.get('status') // Lưu trực tiếp tiếng Việt
+      };
+
+      try {
+        if (editingTableId) {
+          await api.updateTable(editingTableId, table);
+        } else {
+          await api.createTable(table);
+        }
+        closeModal();
+        loadTables();
+        loadStatus();
+      } catch (error) {
+        alert('Lỗi khi lưu bàn: ' + error.message);
+      }
+    }
+
+    async function deleteTable(id) {
+      if (confirm('Bạn có chắc muốn xóa bàn này?')) {
+        try {
+          await api.deleteTable(id);
+          loadTables();
+          loadStatus();
+        } catch (error) {
+          alert('Lỗi khi xóa bàn: ' + error.message);
+        }
+      }
+    }
+
+    function closeModal(e) {
+      const backdrop = document.getElementById('modalBackdrop');
+      if (e && e.target === backdrop) return;
+      backdrop.style.display = 'none';
+    }
+
+    // Override hàm useTable để đảm bảo logic tạo hóa đơn được sử dụng
+    // (Override bất kỳ hàm nào từ pages.js hoặc file khác)
+    loadTables();
+    loadStatus();
+  </script>
+</body>
+</html>

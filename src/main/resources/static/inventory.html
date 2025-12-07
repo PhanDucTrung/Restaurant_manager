@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kho hàng</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <section id="inventory" class="view">
+    <div class="panel">
+      <h3 style="margin-top:0">Kho hàng</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="small">Quản lý nhập kho, tồn kho</div>
+        <div style="display:flex;gap:8px;">
+          <button class="pill" onclick="loadInventory();" title="Làm mới">⟳</button>
+          <button class="btn" onclick="openModal('newInventory')">+ Nhập Kho</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Tên</th>
+            <th>Số lượng</th>
+            <th>Đơn vị</th>
+            <th>Giá đơn vị</th>
+            <th>Nhà cung cấp</th>
+            <th>Hành động</th>
+          </tr>
+        </thead>
+        <tbody id="inventoryTable">
+          <tr><td colspan="7" class="loading">Đang tải...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    </section>
+      <footer>© 2025 Restaurant Manager — Giao diện quản lý nhà hàng</footer>
+    </main>
+  </div>
+
+  <div id="modalBackdrop" class="modal-backdrop" onclick="closeModal(event)">
+    <div id="modalContent" class="modal" onclick="event.stopPropagation()"></div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    let editingInventoryId = null;
+
+    async function loadInventory() {
+      try {
+        const items = await api.getInventory();
+        const tbody = document.getElementById('inventoryTable');
+        
+        if (items.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Chưa có dữ liệu kho</td></tr>';
+        } else {
+          tbody.innerHTML = items.map((it, i) => `
+            <tr>
+              <td>${i + 1}</td>
+              <td>${it.itemName || '-'}</td>
+              <td>${it.quantity || 0}</td>
+              <td>${it.unit || '-'}</td>
+              <td>₫ ${(parseFloat(it.unitPrice) || 0).toLocaleString('vi-VN')}</td>
+              <td>${it.supplier || '-'}</td>
+              <td>
+                <button class="pill" onclick="openModal('editInventory', '${it.id}')">Sửa</button>
+              </td>
+            </tr>
+          `).join('');
+        }
+      } catch (error) {
+        console.error('Error loading inventory:', error);
+        document.getElementById('inventoryTable').innerHTML = '<tr><td colspan="7" class="empty-state">Lỗi khi tải dữ liệu</td></tr>';
+      }
+    }
+
+    function openModal(type, id) {
+      const backdrop = document.getElementById('modalBackdrop');
+      const content = document.getElementById('modalContent');
+      
+      if (type === 'newInventory') {
+        editingInventoryId = null;
+        content.innerHTML = `
+          <h3>Nhập kho mới</h3>
+          <form id="inventoryForm" onsubmit="saveInventory(event)">
+            <div style="margin-top:10px">
+              <input class="input" name="itemName" placeholder="Tên nguyên liệu/sản phẩm" required />
+            </div>
+            <div class="form-row" style="margin-top:10px">
+              <input class="input" type="number" name="quantity" placeholder="Số lượng" required />
+              <input class="input" name="unit" placeholder="Đơn vị (kg, lít...)" required />
+            </div>
+            <div class="form-row" style="margin-top:10px">
+              <input class="input" type="number" name="unitPrice" step="0.01" placeholder="Giá đơn vị" required />
+              <input class="input" name="supplier" placeholder="Nhà cung cấp" />
+            </div>
+            <div style="margin-top:10px">
+              <textarea class="input" name="note" placeholder="Ghi chú"></textarea>
+            </div>
+            <div class="modal-actions">
+              <button type="button" onclick="closeModal()" class="pill">Hủy</button>
+              <button type="submit" class="btn">Lưu</button>
+            </div>
+          </form>
+        `;
+      } else if (type === 'editInventory') {
+        editingInventoryId = id;
+        fetch(`${API_BASE_URL}/inventory/${id}`)
+          .then(r => r.json())
+          .then(item => {
+            content.innerHTML = `
+              <h3>Chỉnh sửa kho</h3>
+              <form id="inventoryForm" onsubmit="saveInventory(event)">
+                <div style="margin-top:10px">
+                  <input class="input" name="itemName" value="${item.itemName || ''}" placeholder="Tên nguyên liệu/sản phẩm" required />
+                </div>
+                <div class="form-row" style="margin-top:10px">
+                  <input class="input" type="number" name="quantity" value="${item.quantity || ''}" placeholder="Số lượng" required />
+                  <input class="input" name="unit" value="${item.unit || ''}" placeholder="Đơn vị" required />
+                </div>
+                <div class="form-row" style="margin-top:10px">
+                  <input class="input" type="number" name="unitPrice" value="${item.unitPrice || ''}" step="0.01" placeholder="Giá đơn vị" required />
+                  <input class="input" name="supplier" value="${item.supplier || ''}" placeholder="Nhà cung cấp" />
+                </div>
+                <div style="margin-top:10px">
+                  <textarea class="input" name="note" placeholder="Ghi chú">${item.note || ''}</textarea>
+                </div>
+                <div class="modal-actions">
+                  <button type="button" onclick="closeModal()" class="pill">Hủy</button>
+                  <button type="submit" class="btn">Cập nhật</button>
+                </div>
+              </form>
+            `;
+          });
+      }
+      
+      backdrop.style.display = 'flex';
+    }
+
+    async function saveInventory(event) {
+      event.preventDefault();
+      const form = event.target;
+      const formData = new FormData(form);
+      const item = {
+        itemName: formData.get('itemName'),
+        quantity: parseInt(formData.get('quantity')),
+        unit: formData.get('unit'),
+        unitPrice: parseFloat(formData.get('unitPrice')),
+        supplier: formData.get('supplier'),
+        note: formData.get('note')
+      };
+
+      try {
+        if (editingInventoryId) {
+          await api.updateInventory(editingInventoryId, item);
+        } else {
+          await api.createInventory(item);
+        }
+        closeModal();
+        loadInventory();
+      } catch (error) {
+        alert('Lỗi khi lưu kho: ' + error.message);
+      }
+    }
+
+    function closeModal(e) {
+      const backdrop = document.getElementById('modalBackdrop');
+      if (e && e.target === backdrop) return;
+      backdrop.style.display = 'none';
+    }
+
+    loadInventory();
+  </script>
+</body>
+</html>
+

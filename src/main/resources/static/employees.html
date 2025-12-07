@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nhân viên</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <section id="employees" class="view">
+    <div class="panel">
+      <h3 style="margin-top:0">Nhân viên</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="small">Quản lý thông tin nhân viên</div>
+        <div style="display:flex;gap:8px;">
+          <button class="pill" onclick="loadEmployees();" title="Làm mới">⟳</button>
+          <button class="btn" onclick="openModal('newEmployee')">+ Thêm Nhân viên</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Tên</th>
+            <th>Vai trò</th>
+            <th>Điện thoại</th>
+            <th>Lương</th>
+            <th>Trạng thái</th>
+            <th>Hành động</th>
+          </tr>
+        </thead>
+        <tbody id="employeesTable">
+          <tr><td colspan="7" class="loading">Đang tải...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    </section>
+      <footer>© 2025 Restaurant Manager — Giao diện quản lý nhà hàng</footer>
+    </main>
+  </div>
+
+  <div id="modalBackdrop" class="modal-backdrop" onclick="closeModal(event)">
+    <div id="modalContent" class="modal" onclick="event.stopPropagation()"></div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+  <script src="/js/pages.js"></script>
+  <script src="/js/modals.js"></script>
+  <script>
+    // Helper function to format role for display
+    function formatRole(role) {
+      if (!role) return '-';
+      // Map old English values to Vietnamese
+      const roleMap = {
+        'ADMIN': 'Quản trị viên',
+        'waiter': 'Phục vụ',
+        'cashier': 'Thu ngân',
+        'chef': 'Đầu bếp',
+        'manager': 'Quản lý',
+        'Phục_vụ': 'Phục vụ',
+        'Thu_ngân': 'Thu ngân',
+        'Đầu_bếp': 'Đầu bếp',
+        'Quản_lý': 'Quản lý'
+      };
+      return roleMap[role] || role.replace(/_/g, ' ');
+    }
+    
+    // Filter employees dựa trên quyền
+    function filterEmployeesByRole(employees) {
+      const employeeRole = sessionStorage.getItem('employeeRole');
+      
+      // Nếu không phải ADMIN, ẩn các nhân viên có role ADMIN
+      if (employeeRole !== 'ADMIN') {
+        return employees.filter(emp => {
+          const empRole = emp.role;
+          return empRole !== 'ADMIN';
+        });
+      }
+      
+      return employees;
+    }
+
+    // loadEmployees is defined in pages.js
+    if (typeof loadEmployees === 'function') {
+      loadEmployees();
+    } else {
+      // Fallback if pages.js is not loaded
+      async function loadEmployees() {
+        try {
+          const employees = await api.getEmployees();
+          const filteredEmployees = filterEmployeesByRole(employees);
+          const tbody = document.getElementById('employeesTable');
+          
+          if (filteredEmployees.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Chưa có nhân viên nào</td></tr>';
+          } else {
+            tbody.innerHTML = filteredEmployees.map((e, i) => `
+              <tr>
+                <td>${i + 1}</td>
+                <td>${e.name || '-'}</td>
+                <td>${formatRole(e.role)}</td>
+                <td>${e.phone || '-'}</td>
+                <td>₫ ${(parseFloat(e.salary) || 0).toLocaleString('vi-VN')}</td>
+                <td>${e.status ? 'Hoạt động' : 'Không hoạt động'}</td>
+                <td>
+                  <button class="pill" onclick="openModal('editEmployee', '${e.id}')">Sửa</button>
+                </td>
+              </tr>
+            `).join('');
+          }
+        } catch (error) {
+          console.error('Error loading employees:', error);
+          document.getElementById('employeesTable').innerHTML = '<tr><td colspan="7" class="empty-state">Lỗi khi tải dữ liệu</td></tr>';
+        }
+      }
+      loadEmployees();
+    }
+  </script>
+</body>
+</html>
+

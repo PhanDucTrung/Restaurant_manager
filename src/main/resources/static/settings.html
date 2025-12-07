@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cài đặt</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <section id="settings" class="view">
+    <div class="panel">
+      <h3 style="margin-top:0">Cài đặt</h3>
+      <div class="small" style="margin-bottom:12px">Quản lý danh mục và cấu hình hệ thống</div>
+      
+      <div style="margin-bottom:20px">
+        <h4>Danh mục món ăn</h4>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div class="small">Quản lý các danh mục cho menu</div>
+          <div><button class="btn" onclick="openModal('newCategory')">+ Thêm Danh mục</button></div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Tên</th>
+              <th>Mô tả</th>
+              <th>Hành động</th>
+            </tr>
+          </thead>
+          <tbody id="categoriesTable">
+            <tr><td colspan="4" class="loading">Đang tải...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    </section>
+      <footer>© 2025 Restaurant Manager — Giao diện quản lý nhà hàng</footer>
+    </main>
+  </div>
+
+  <div id="modalBackdrop" class="modal-backdrop" onclick="closeModal(event)">
+    <div id="modalContent" class="modal" onclick="event.stopPropagation()"></div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    let editingCategoryId = null;
+
+    async function loadCategories() {
+      try {
+        const categories = await api.getCategories();
+        const tbody = document.getElementById('categoriesTable');
+        
+        if (categories.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Chưa có danh mục nào</td></tr>';
+        } else {
+          tbody.innerHTML = categories.map((c, i) => `
+            <tr>
+              <td>${i + 1}</td>
+              <td>${c.name || '-'}</td>
+              <td>${c.description || '-'}</td>
+              <td>
+                <button class="pill" onclick="openModal('editCategory', '${c.id}')">Sửa</button>
+                <button class="pill" onclick="deleteCategory('${c.id}')" style="margin-left:4px">Xóa</button>
+              </td>
+            </tr>
+          `).join('');
+        }
+      } catch (error) {
+        console.error('Error loading categories:', error);
+        document.getElementById('categoriesTable').innerHTML = '<tr><td colspan="4" class="empty-state">Lỗi khi tải dữ liệu</td></tr>';
+      }
+    }
+
+    function openModal(type, id) {
+      const backdrop = document.getElementById('modalBackdrop');
+      const content = document.getElementById('modalContent');
+      
+      if (type === 'newCategory') {
+        editingCategoryId = null;
+        content.innerHTML = `
+          <h3>Thêm danh mục mới</h3>
+          <form id="categoryForm" onsubmit="saveCategory(event)">
+            <div style="margin-top:10px">
+              <input class="input" name="name" placeholder="Tên danh mục" required />
+            </div>
+            <div style="margin-top:10px">
+              <textarea class="input" name="description" placeholder="Mô tả"></textarea>
+            </div>
+            <div class="modal-actions">
+              <button type="button" onclick="closeModal()" class="pill">Hủy</button>
+              <button type="submit" class="btn">Lưu</button>
+            </div>
+          </form>
+        `;
+      } else if (type === 'editCategory') {
+        editingCategoryId = id;
+        fetch(`${API_BASE_URL}/categories/${id}`)
+          .then(r => r.json())
+          .then(category => {
+            content.innerHTML = `
+              <h3>Chỉnh sửa danh mục</h3>
+              <form id="categoryForm" onsubmit="saveCategory(event)">
+                <div style="margin-top:10px">
+                  <input class="input" name="name" value="${category.name || ''}" placeholder="Tên danh mục" required />
+                </div>
+                <div style="margin-top:10px">
+                  <textarea class="input" name="description" placeholder="Mô tả">${category.description || ''}</textarea>
+                </div>
+                <div class="modal-actions">
+                  <button type="button" onclick="closeModal()" class="pill">Hủy</button>
+                  <button type="submit" class="btn">Cập nhật</button>
+                </div>
+              </form>
+            `;
+          });
+      }
+      
+      backdrop.style.display = 'flex';
+    }
+
+    async function saveCategory(event) {
+      event.preventDefault();
+      const form = event.target;
+      const formData = new FormData(form);
+      const category = {
+        name: formData.get('name'),
+        description: formData.get('description')
+      };
+
+      try {
+        if (editingCategoryId) {
+          await api.updateCategory(editingCategoryId, category);
+        } else {
+          await api.createCategory(category);
+        }
+        closeModal();
+        loadCategories();
+      } catch (error) {
+        alert('Lỗi khi lưu danh mục: ' + error.message);
+      }
+    }
+
+    async function deleteCategory(id) {
+      if (confirm('Bạn có chắc muốn xóa danh mục này?')) {
+        try {
+          await api.deleteCategory(id);
+          loadCategories();
+        } catch (error) {
+          alert('Lỗi khi xóa danh mục: ' + error.message);
+        }
+      }
+    }
+
+    function closeModal(e) {
+      const backdrop = document.getElementById('modalBackdrop');
+      if (e && e.target === backdrop) return;
+      backdrop.style.display = 'none';
+    }
+
+    loadCategories();
+  </script>
+</body>
+</html>
+

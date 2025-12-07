@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Menu</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <section id="menu" class="view">
+    <div class="panel">
+      <h3 style="margin-top:0">Quản lý Menu</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="small">Thêm, chỉnh sửa, vô hiệu hóa món</div>
+        <div style="display:flex;gap:8px;">
+          <button class="pill" onclick="loadMenu(); loadCategories();" title="Làm mới">⟳</button>
+          <button class="btn" onclick="openModal('newMenu')">+ Thêm Món</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Tên</th>
+            <th>Danh mục</th>
+            <th>Giá</th>
+            <th>Hoạt động</th>
+            <th>Hành động</th>
+          </tr>
+        </thead>
+        <tbody id="menuTable">
+          <tr><td colspan="6" class="loading">Đang tải...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    </section>
+      <footer>© 2025 Restaurant Manager — Giao diện quản lý nhà hàng</footer>
+    </main>
+  </div>
+
+  <div id="modalBackdrop" class="modal-backdrop" onclick="closeModal(event)">
+    <div id="modalContent" class="modal" onclick="event.stopPropagation()"></div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    let editingItemId = null;
+    let categories = [];
+
+    async function loadCategories() {
+      try {
+        categories = await api.getCategories();
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      }
+    }
+
+    async function loadMenu() {
+      try {
+        const items = await api.getMenuItems();
+        const tbody = document.getElementById('menuTable');
+        
+        if (items.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Chưa có món nào</td></tr>';
+        } else {
+          tbody.innerHTML = items.map((m, i) => `
+            <tr>
+              <td>${i + 1}</td>
+              <td>${m.name || '-'}</td>
+              <td>${m.category?.name || '-'}</td>
+              <td>₫ ${(parseFloat(m.price) || 0).toLocaleString('vi-VN')}</td>
+              <td>${m.isActive ? 'Có' : 'Không'}</td>
+              <td>
+                <button class="pill" onclick="openModal('editMenu', '${m.id}')">Sửa</button>
+                <button class="pill" onclick="deleteMenuItem('${m.id}')" style="margin-left:4px">Xóa</button>
+              </td>
+            </tr>
+          `).join('');
+        }
+      } catch (error) {
+        console.error('Error loading menu:', error);
+        document.getElementById('menuTable').innerHTML = '<tr><td colspan="6" class="empty-state">Lỗi khi tải dữ liệu</td></tr>';
+      }
+    }
+
+    function openModal(type, id) {
+      const backdrop = document.getElementById('modalBackdrop');
+      const content = document.getElementById('modalContent');
+      
+      if (type === 'newMenu') {
+        editingItemId = null;
+        const categoryOptions = categories.map(c => 
+          `<option value="${c.id}">${c.name}</option>`
+        ).join('');
+        
+        content.innerHTML = `
+          <h3>Thêm món mới</h3>
+          <form id="menuForm" onsubmit="saveMenuItem(event)">
+            <div style="margin-top:10px">
+              <input class="input" name="name" placeholder="Tên món" required />
+            </div>
+            <div class="form-row" style="margin-top:10px">
+              <input class="input" type="number" name="price" placeholder="Giá" step="0.01" required />
+              <input class="input" name="unit" placeholder="Đơn vị" value="Phần" />
+            </div>
+            <div style="margin-top:10px">
+              <select class="input" name="categoryId" required>
+                <option value="">Chọn danh mục</option>
+                ${categoryOptions}
+              </select>
+            </div>
+            <div style="margin-top:10px">
+              <label><input type="checkbox" name="isActive" checked /> Hoạt động</label>
+            </div>
+            <div class="modal-actions">
+              <button type="button" onclick="closeModal()" class="pill">Hủy</button>
+              <button type="submit" class="btn">Lưu</button>
+            </div>
+          </form>
+        `;
+      } else if (type === 'editMenu') {
+        editingItemId = id;
+        // Load item details and show edit form
+        fetch(`${API_BASE_URL}/menu-items/${id}`)
+          .then(r => r.json())
+          .then(item => {
+            const categoryOptions = categories.map(c => 
+              `<option value="${c.id}" ${item.category?.id === c.id ? 'selected' : ''}>${c.name}</option>`
+            ).join('');
+            
+            content.innerHTML = `
+              <h3>Chỉnh sửa món</h3>
+              <form id="menuForm" onsubmit="saveMenuItem(event)">
+                <div style="margin-top:10px">
+                  <input class="input" name="name" value="${item.name || ''}" placeholder="Tên món" required />
+                </div>
+                <div class="form-row" style="margin-top:10px">
+                  <input class="input" type="number" name="price" value="${item.price || ''}" placeholder="Giá" step="0.01" required />
+                  <input class="input" name="unit" value="${item.unit || ''}" placeholder="Đơn vị" />
+                </div>
+                <div style="margin-top:10px">
+                  <select class="input" name="categoryId" required>
+                    <option value="">Chọn danh mục</option>
+                    ${categoryOptions}
+                  </select>
+                </div>
+                <div style="margin-top:10px">
+                  <label><input type="checkbox" name="isActive" ${item.isActive ? 'checked' : ''} /> Hoạt động</label>
+                </div>
+                <div class="modal-actions">
+                  <button type="button" onclick="closeModal()" class="pill">Hủy</button>
+                  <button type="submit" class="btn">Cập nhật</button>
+                </div>
+              </form>
+            `;
+          });
+      }
+      
+      backdrop.style.display = 'flex';
+    }
+
+    async function saveMenuItem(event) {
+      event.preventDefault();
+      const form = event.target;
+      const formData = new FormData(form);
+      const item = {
+        name: formData.get('name'),
+        price: parseFloat(formData.get('price')),
+        unit: formData.get('unit'),
+        isActive: formData.get('isActive') === 'on',
+        category: { id: formData.get('categoryId') }
+      };
+
+      try {
+        if (editingItemId) {
+          await api.updateMenuItem(editingItemId, item);
+        } else {
+          await api.createMenuItem(item);
+        }
+        closeModal();
+        loadMenu();
+      } catch (error) {
+        alert('Lỗi khi lưu món: ' + error.message);
+      }
+    }
+
+    async function deleteMenuItem(id) {
+      if (confirm('Bạn có chắc muốn xóa món này?')) {
+        try {
+          await api.deleteMenuItem(id);
+          loadMenu();
+        } catch (error) {
+          alert('Lỗi khi xóa món: ' + error.message);
+        }
+      }
+    }
+
+    function closeModal(e) {
+      const backdrop = document.getElementById('modalBackdrop');
+      if (e && e.target === backdrop) return;
+      backdrop.style.display = 'none';
+    }
+
+    loadCategories().then(() => loadMenu());
+  </script>
+</body>
+</html>
+

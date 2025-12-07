@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Thống kê</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">RM</div>
+        <div>
+          <div style="font-weight:700">Quản Lý Nhà Hàng</div>
+          <div class="small">v1.0 • Spring Boot + MongoDB</div>
+        </div>
+      </div>
+      <nav class="nav">
+        <a href="/tables.html">🪑 Trạng thái bàn</a>
+        <a href="/menu.html">📋 Dịch vụ</a>
+        <a href="/orders.html">🧾 Hóa đơn</a>
+        <a href="/customers.html">👥 Khách hàng</a>
+        <a href="/dashboard.html" class="active">📊 Thống kê</a>
+        <a href="/employees.html">👨‍🍳 Nhân viên</a>
+      </nav>
+      <div style="margin-top:20px" class="small">Trạng thái</div>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap" id="statusPills">
+        <div class="pill">Đang tải...</div>
+      </div>
+    </aside>
+    <main class="main">
+      <header>
+        <div style="display:flex;gap:12px;align-items:center">
+          <h2 id="pageTitle">Thống kê</h2>
+          <div class="small">/ Tổng quan hệ thống</div>
+        </div>
+        <div class="actions">
+          <div class="search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21 21l-4.35-4.35" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <input placeholder="Tìm kiếm..." id="globalSearch" />
+          </div>
+          <button class="btn" onclick="loadDashboard();">⟳ Làm mới</button>
+        </div>
+      </header>
+      <section id="dashboard" class="view">
+        <div class="grid-4">
+          <div class="card">
+            <h3>Doanh thu hôm nay</h3>
+            <p id="todayRevenue">₫ 0</p>
+          </div>
+          <div class="card">
+            <h3>Đơn hàng (hôm nay)</h3>
+            <p id="todayOrders">0</p>
+          </div>
+          <div class="card">
+            <h3>Bàn đang phục vụ</h3>
+            <p id="occupiedTables">0 / 0</p>
+          </div>
+          <div class="card">
+            <h3>Nguyên liệu cần nhập</h3>
+            <p id="lowStock">0 mục</p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3 style="margin-top:0">Danh sách bàn</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Tên</th>
+                <th>Khu vực</th>
+                <th>Trạng thái</th>
+                <th>Hành động</th>
+              </tr>
+            </thead>
+            <tbody id="tablesList">
+              <tr><td colspan="5" class="loading">Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="panel">
+          <h3 style="margin-top:0">Đơn hàng mới nhất</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Mã</th>
+                <th>Khách</th>
+                <th>Loại</th>
+                <th>Tổng</th>
+                <th>Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody id="ordersList">
+              <tr><td colspan="5" class="loading">Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <footer>© 2025 Quản Lý Nhà Hàng — Giao diện quản lý nhà hàng</footer>
+    </main>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    async function loadDashboard() {
+      try {
+        const [tables, orders, payments] = await Promise.all([
+          api.getTables(),
+          api.getOrders(),
+          api.getPayments()
+        ]);
+
+        // Update stats
+        const today = new Date().toISOString().split('T')[0];
+        const todayOrders = orders.filter(o => o.createdAt && o.createdAt.startsWith(today));
+        const todayPayments = payments.filter(p => p.createdAt && p.createdAt.startsWith(today));
+        const todayRevenue = todayPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+        
+        const occupiedTables = tables.filter(t => t.status === 'occupied').length;
+        
+        document.getElementById('todayRevenue').textContent = `₫ ${todayRevenue.toLocaleString('vi-VN')}`;
+        document.getElementById('todayOrders').textContent = todayOrders.length;
+        document.getElementById('occupiedTables').textContent = `${occupiedTables} / ${tables.length}`;
+
+        // Render tables
+        const tablesList = document.getElementById('tablesList');
+        if (tables.length === 0) {
+          tablesList.innerHTML = '<tr><td colspan="5" class="empty-state">Chưa có bàn nào</td></tr>';
+        } else {
+          tablesList.innerHTML = tables.slice(0, 10).map((t, i) => `
+            <tr>
+              <td>${i + 1}</td>
+              <td>${t.name || '-'}</td>
+              <td>${t.area || '-'}</td>
+              <td><span class="status-${t.status}">${t.status || '-'}</span></td>
+              <td><button class="pill" onclick="window.location.href='/tables.html?id=${t.id}'">View</button></td>
+            </tr>
+          `).join('');
+        }
+
+        // Render orders
+        const ordersList = document.getElementById('ordersList');
+        if (orders.length === 0) {
+          ordersList.innerHTML = '<tr><td colspan="5" class="empty-state">Chưa có đơn hàng nào</td></tr>';
+        } else {
+          ordersList.innerHTML = orders.slice(0, 10).map(o => `
+            <tr>
+              <td>${o.id || '-'}</td>
+              <td>${o.customer?.name || '-'}</td>
+              <td>${o.orderType || '-'}</td>
+              <td>₫ ${(parseFloat(o.totalAmount) || 0).toLocaleString('vi-VN')}</td>
+              <td><span class="status-${o.status}">${o.status || '-'}</span></td>
+            </tr>
+          `).join('');
+        }
+      } catch (error) {
+        console.error('Error loading dashboard:', error);
+        document.getElementById('tablesList').innerHTML = '<tr><td colspan="5" class="empty-state">Lỗi khi tải dữ liệu</td></tr>';
+        document.getElementById('ordersList').innerHTML = '<tr><td colspan="5" class="empty-state">Lỗi khi tải dữ liệu</td></tr>';
+      }
+    }
+
+    loadDashboard();
+    setInterval(loadDashboard, 30000);
+    loadStatus();
+  </script>
+</body>
+</html>

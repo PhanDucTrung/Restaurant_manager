@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quản Lý Nhà Hàng — Giao Diện</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <script>
+    // Kiểm tra authentication trước khi load trang
+    if (!sessionStorage.getItem('isAuthenticated') || sessionStorage.getItem('isAuthenticated') !== 'true') {
+      window.location.href = '/login.html';
+    }
+  </script>
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar Menu -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">RM</div>
+        <div>
+          <div style="font-weight:700">Quản Lý Nhà Hàng</div>
+          <div class="small">Nhóm 19</div>
+        </div>
+      </div>
+      <nav class="nav" id="mainNav">
+        <a href="#" class="active" data-page="tables" onclick="showPage('tables'); return false;">🪑 Trạng thái bàn</a>
+        <a href="#" data-page="menu" id="navMenu" onclick="showPage('menu'); return false;">📋 Dịch vụ</a>
+        <a href="#" data-page="orders" id="navOrders" onclick="showPage('orders'); return false;">🧾 Hóa đơn</a>
+        <a href="#" data-page="customers" id="navCustomers" onclick="showPage('customers'); return false;">👥 Khách hàng</a>
+        <a href="#" data-page="dashboard" id="navDashboard" onclick="showPage('dashboard'); return false;">📊 Thống kê</a>
+        <a href="#" data-page="employees" id="navEmployees" onclick="showPage('employees'); return false;">👨‍🍳 Nhân viên</a>
+      </nav>
+      <div style="margin-top:20px" class="small">Trạng thái</div>
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap" id="statusPills">
+        <div class="pill">Đang tải...</div>
+      </div>
+      <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+        <div class="small" style="margin-bottom: 8px;">Đăng nhập bởi:</div>
+        <div style="font-size: 13px; color: #e6eef6; margin-bottom: 12px;" id="employeeInfo">
+          <div id="employeeName">-</div>
+          <div class="small" id="employeeRole">-</div>
+        </div>
+        <button class="pill" onclick="handleLogout()" style="width: 100%; justify-content: center;">
+          Đăng xuất
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main">
+
+      <!-- Dashboard Section -->
+      <section id="dashboard" class="view" style="display:none">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+          <button class="pill" onclick="refreshSection('dashboard')" title="Làm mới">⟳ Làm mới</button>
+        </div>
+        <div class="grid-4">
+          <div class="card">
+            <h3>Doanh thu hôm nay</h3>
+            <p id="todayRevenue">₫ 0</p>
+          </div>
+          <div class="card">
+            <h3>Đơn hàng (hôm nay)</h3>
+            <p id="todayOrders">0</p>
+          </div>
+          <div class="card">
+            <h3>Bàn đang phục vụ</h3>
+            <p id="occupiedTables">0 / 0</p>
+          </div>
+          <div class="card">
+            <h3>Nguyên liệu cần nhập</h3>
+            <p id="lowStock">0 mục</p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3 style="margin-top:0">Danh sách bàn</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Tên</th>
+                <th>Khu vực</th>
+                <th>Trạng thái</th>
+                <th>Hành động</th>
+              </tr>
+            </thead>
+            <tbody id="tablesList">
+              <tr><td colspan="5" class="loading">Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="panel">
+          <h3 style="margin-top:0">Đơn hàng mới nhất</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Mã</th>
+                <th>Khách</th>
+                <th>Loại</th>
+                <th>Tổng</th>
+                <th>Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody id="ordersList">
+              <tr><td colspan="5" class="loading">Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Tables Section -->
+      <section id="tables" class="view">
+        <div class="panel">
+          <h3 style="margin-top:0">Bảng điều khiển Bàn</h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div class="small">Quản lý bố trí bàn, trạng thái</div>
+            <div style="display:flex;gap:8px;">
+              <button class="pill" onclick="refreshSection('tables')" title="Làm mới">⟳</button>
+              <button class="btn" onclick="openModal('newTable')">+ Thêm Bàn</button>
+            </div>
+          </div>
+          <!-- Bộ lọc tìm kiếm -->
+          <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+            <input type="text" id="filterTableName" placeholder="Tìm theo tên bàn..." 
+                   oninput="filterTables()" 
+                   style="flex:1;min-width:200px;padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;" />
+            <input type="text" id="filterTableArea" placeholder="Tìm theo khu vực..." 
+                   oninput="filterTables()" 
+                   style="flex:1;min-width:200px;padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;" />
+            <select id="filterTableStatus" onchange="filterTables()" 
+                    style="flex:1;min-width:150px;padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">
+              <option value="">Tất cả trạng thái</option>
+              <option value="Trống">Trống</option>
+              <option value="Đặt trước">Đặt trước</option>
+              <option value="Đang sử dụng">Đang sử dụng</option>
+              <option value="Sửa chữa">Sửa chữa</option>
+            </select>
+          </div>
+          <div id="tablesGrid" class="tables-card-grid">
+            <div class="loading">Đang tải...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Menu Section -->
+      <section id="menu" class="view" style="display:none">
+        <div class="panel">
+          <h3 style="margin-top:0">Quản lý Menu</h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div class="small">Thêm, chỉnh sửa, vô hiệu hóa món</div>
+            <div style="display:flex;gap:8px;">
+              <button class="pill" onclick="refreshSection('menu')" title="Làm mới">⟳</button>
+              <button class="btn" onclick="openModal('newMenu')">+ Thêm Món</button>
+            </div>
+          </div>
+          <!-- Bộ lọc tìm kiếm -->
+          <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+            <input type="text" id="filterMenuName" placeholder="Tìm theo tên món..." 
+                   oninput="filterMenu()" 
+                   style="flex:1;min-width:200px;padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;" />
+            <select id="filterMenuCategory" onchange="filterMenu()" 
+                    style="flex:1;min-width:150px;padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">
+              <option value="">Tất cả danh mục</option>
+            </select>
+            <select id="filterMenuPrice" onchange="filterMenu()" 
+                    style="flex:1;min-width:150px;padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">
+              <option value="">Tất cả giá</option>
+              <option value="0-50000">Dưới 50,000₫</option>
+              <option value="50000-100000">50,000₫ - 100,000₫</option>
+              <option value="100000-200000">100,000₫ - 200,000₫</option>
+              <option value="200000-">Trên 200,000₫</option>
+            </select>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Tên</th>
+                <th>Danh mục</th>
+                <th>Giá</th>
+                <th>Hoạt động</th>
+                <th>Hành động</th>
+              </tr>
+            </thead>
+            <tbody id="menuTable">
+              <tr><td colspan="6" class="loading">Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Orders Section -->
+      <section id="orders" class="view" style="display:none">
+        <div class="panel">
+          <h3 style="margin-top:0">Đơn hàng</h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div class="small">Tạo đơn, cập nhật trạng thái</div>
+            <div style="display:flex;gap:8px;">
+              <button class="pill" onclick="refreshSection('orders')" title="Làm mới">⟳</button>
+              <button class="btn" onclick="openModal('newOrder')">+ Tạo Đơn</button>
+            </div>
+          </div>
+          <!-- Bộ lọc tìm kiếm -->
+          <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+            <select id="filterOrderStatus" onchange="filterOrders()" 
+                    style="flex:1;min-width:150px;padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">
+              <option value="">Tất cả tình trạng</option>
+              <option value="pending">Đang phục vụ </option>
+              <option value="completed">Hoàn thành</option>
+            </select>
+            <input type="text" id="filterOrderCustomer" placeholder="Tìm theo tên khách hàng..." 
+                   oninput="filterOrders()" 
+                   style="flex:1;min-width:200px;padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;" />
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Mã</th>
+                <th>Bàn</th>
+                <th>Khách</th>
+                <th>Tổng</th>
+                <th>Trạng thái</th>
+                <th>Hành động</th>
+              </tr>
+            </thead>
+            <tbody id="ordersAdmin">
+              <tr><td colspan="6" class="loading">Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Customers Section -->
+      <section id="customers" class="view" style="display:none">
+        <div class="panel">
+          <h3 style="margin-top:0">Khách hàng</h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div class="small">Quản lý thông tin khách hàng</div>
+            <div style="display:flex;gap:8px;">
+              <button class="pill" onclick="refreshSection('customers')" title="Làm mới">⟳</button>
+              <button class="btn" onclick="openModal('newCustomer')">+ Thêm Khách</button>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Tên</th>
+                <th>Điện thoại</th>
+                <th>Loại</th>
+                <th>Điểm</th>
+                <th>Hành động</th>
+              </tr>
+            </thead>
+            <tbody id="customersTable">
+              <tr><td colspan="6" class="loading">Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Inventory Section -->
+      <section id="inventory" class="view" style="display:none">
+        <div class="panel">
+          <h3 style="margin-top:0">Kho hàng</h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div class="small">Quản lý nhập kho, tồn kho</div>
+            <div style="display:flex;gap:8px;">
+              <button class="pill" onclick="refreshSection('inventory')" title="Làm mới">⟳</button>
+              <button class="btn" onclick="openModal('newInventory')">+ Nhập Kho</button>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Tên</th>
+                <th>Số lượng</th>
+                <th>Đơn vị</th>
+                <th>Giá đơn vị</th>
+                <th>Nhà cung cấp</th>
+                <th>Hành động</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryTable">
+              <tr><td colspan="7" class="loading">Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Employees Section -->
+      <section id="employees" class="view" style="display:none">
+        <div class="panel">
+          <h3 style="margin-top:0">Nhân viên</h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div class="small">Quản lý thông tin nhân viên</div>
+            <div style="display:flex;gap:8px;">
+              <button class="pill" onclick="refreshSection('employees')" title="Làm mới">⟳</button>
+              <button class="btn" onclick="openModal('newEmployee')">+ Thêm Nhân viên</button>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Tên</th>
+                <th>Vai trò</th>
+                <th>Điện thoại</th>
+                <th>Lương</th>
+                <th>Trạng thái</th>
+                <th>Hành động</th>
+              </tr>
+            </thead>
+            <tbody id="employeesTable">
+              <tr><td colspan="7" class="loading">Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Payments Section -->
+      <section id="payments" class="view" style="display:none">
+        <div class="panel">
+          <h3 style="margin-top:0">Thanh toán</h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div class="small">Quản lý thanh toán và doanh thu</div>
+            <div style="display:flex;gap:8px;">
+              <button class="pill" onclick="refreshSection('payments')" title="Làm mới">⟳</button>
+              <button class="btn" onclick="openModal('newPayment')">+ Thêm Thanh toán</button>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Đơn hàng</th>
+                <th>Số tiền</th>
+                <th>Phương thức</th>
+                <th>Thời gian</th>
+              </tr>
+            </thead>
+            <tbody id="paymentsTable">
+              <tr><td colspan="5" class="loading">Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Settings Section -->
+      <section id="settings" class="view" style="display:none">
+        <div class="panel">
+          <h3 style="margin-top:0">Cài đặt</h3>
+          <div class="small" style="margin-bottom:12px">Quản lý danh mục và cấu hình hệ thống</div>
+          
+          <div style="margin-bottom:20px">
+            <h4>Danh mục món ăn</h4>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <div class="small">Quản lý các danh mục cho menu</div>
+              <div style="display:flex;gap:8px;">
+                <button class="pill" onclick="refreshSection('categories')" title="Làm mới">⟳</button>
+                <button class="btn" onclick="openModal('newCategory')">+ Thêm Danh mục</button>
+              </div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Tên</th>
+                  <th>Mô tả</th>
+                  <th>Hành động</th>
+                </tr>
+              </thead>
+              <tbody id="categoriesTable">
+                <tr><td colspan="4" class="loading">Đang tải...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <footer>© 2025 Quản Lý Nhà Hàng — Giao diện quản lý nhà hàng</footer>
+    </main>
+  </div>
+
+  <!-- Modal -->
+  <div id="modalBackdrop" class="modal-backdrop" onclick="closeModal(event)">
+    <div id="modalContent" class="modal" onclick="event.stopPropagation()"></div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+  <script src="/js/pages.js"></script>
+  <script src="/js/modals.js"></script>
+  <script>
+    // Phân quyền dựa trên role
+    function setupRoleBasedAccess() {
+      const employeeRole = sessionStorage.getItem('employeeRole');
+      
+      if (!employeeRole) {
+        // Nếu không có role, redirect về login
+        window.location.href = '/login.html';
+        return;
+      }
+      
+      // ADMIN: thấy tất cả - không cần ẩn gì
+      if (employeeRole === 'ADMIN') {
+        return;
+      }
+      
+      // Quản_lý: thấy tất cả menu nhưng sẽ filter admin trong trang nhân viên
+      if (employeeRole === 'Quản_lý' || employeeRole === 'manager') {
+        return;
+      }
+      
+      // Các role khác (Phục_vụ, Thu_ngân, Đầu_bếp): chỉ thấy Trạng thái bàn
+      const navMenu = document.getElementById('navMenu');
+      const navOrders = document.getElementById('navOrders');
+      const navCustomers = document.getElementById('navCustomers');
+      const navDashboard = document.getElementById('navDashboard');
+      const navEmployees = document.getElementById('navEmployees');
+      
+      if (navMenu) navMenu.style.display = 'none';
+      if (navOrders) navOrders.style.display = 'none';
+      if (navCustomers) navCustomers.style.display = 'none';
+      if (navDashboard) navDashboard.style.display = 'none';
+      if (navEmployees) navEmployees.style.display = 'none';
+      
+      // Ẩn các section tương ứng
+      const sections = document.querySelectorAll('section.view');
+      sections.forEach(section => {
+        const sectionId = section.id;
+        if (sectionId !== 'tables') {
+          section.style.display = 'none';
+        }
+      });
+    }
+    
+    // Kiểm tra quyền truy cập trang
+    function checkPageAccess(pageName) {
+      const employeeRole = sessionStorage.getItem('employeeRole');
+      
+      if (!employeeRole) {
+        window.location.href = '/login.html';
+        return false;
+      }
+      
+      // ADMIN và Quản_lý: có quyền truy cập tất cả
+      if (employeeRole === 'ADMIN' || employeeRole === 'Quản_lý' || employeeRole === 'manager') {
+        return true;
+      }
+      
+      // Các role khác: chỉ được truy cập trang tables
+      if (pageName === 'tables') {
+        return true;
+      }
+      
+      // Nếu không có quyền, redirect về trang tables
+      alert('Bạn không có quyền truy cập trang này');
+      showPage('tables');
+      return false;
+    }
+    
+    // Override showPage function để kiểm tra quyền
+    const originalShowPage = window.showPage;
+    window.showPage = function(pageName) {
+      if (checkPageAccess(pageName)) {
+        if (originalShowPage) {
+          originalShowPage(pageName);
+        }
+      }
+    };
+    
+    // Hiển thị thông tin nhân viên đã đăng nhập
+    window.addEventListener('DOMContentLoaded', function() {
+      const employeeName = sessionStorage.getItem('employeeName');
+      const employeeRole = sessionStorage.getItem('employeeRole');
+      
+      if (employeeName) {
+        document.getElementById('employeeName').textContent = employeeName;
+      }
+      
+      if (employeeRole) {
+        // Format role để hiển thị
+        const roleMap = {
+          'ADMIN': 'Quản trị viên',
+          'Phục_vụ': 'Phục vụ',
+          'Thu_ngân': 'Thu ngân',
+          'Đầu_bếp': 'Đầu bếp',
+          'Quản_lý': 'Quản lý',
+          'waiter': 'Phục vụ',
+          'cashier': 'Thu ngân',
+          'chef': 'Đầu bếp',
+          'manager': 'Quản lý'
+        };
+        document.getElementById('employeeRole').textContent = roleMap[employeeRole] || employeeRole.replace(/_/g, ' ');
+      }
+      
+      // Setup phân quyền
+      setupRoleBasedAccess();
+    });
+    
+    // Xử lý đăng xuất
+    function handleLogout() {
+      if (confirm('Bạn có chắc muốn đăng xuất?')) {
+        // Xóa session storage
+        sessionStorage.removeItem('employeeId');
+        sessionStorage.removeItem('employeeName');
+        sessionStorage.removeItem('employeeRole');
+        sessionStorage.removeItem('isAuthenticated');
+        
+        // Redirect đến trang login
+        window.location.href = '/login.html';
+      }
+    }
+  </script>
+</body>
+</html>

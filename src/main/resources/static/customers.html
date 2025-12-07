@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Khách hàng</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <section id="customers" class="view">
+    <div class="panel">
+      <h3 style="margin-top:0">Khách hàng</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="small">Quản lý thông tin khách hàng</div>
+        <div style="display:flex;gap:8px;">
+          <button class="pill" onclick="loadCustomers();" title="Làm mới">⟳</button>
+          <button class="btn" onclick="openModal('newCustomer')">+ Thêm Khách</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Tên</th>
+            <th>Điện thoại</th>
+            <th>Loại</th>
+            <th>Điểm</th>
+            <th>Hành động</th>
+          </tr>
+        </thead>
+        <tbody id="customersTable">
+          <tr><td colspan="6" class="loading">Đang tải...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    </section>
+      <footer>© 2025 Restaurant Manager — Giao diện quản lý nhà hàng</footer>
+    </main>
+  </div>
+
+  <div id="modalBackdrop" class="modal-backdrop" onclick="closeModal(event)">
+    <div id="modalContent" class="modal" onclick="event.stopPropagation()"></div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    let editingCustomerId = null;
+
+    async function loadCustomers() {
+      try {
+        const customers = await api.getCustomers();
+        const tbody = document.getElementById('customersTable');
+        
+        if (customers.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Chưa có khách hàng nào</td></tr>';
+        } else {
+          tbody.innerHTML = customers.map((c, i) => `
+            <tr>
+              <td>${i + 1}</td>
+              <td>${c.name || '-'}</td>
+              <td>${c.phone || '-'}</td>
+              <td>${c.type || '-'}</td>
+              <td>${c.points || 0}</td>
+              <td>
+                <button class="pill" onclick="openModal('editCustomer', '${c.id}')">Sửa</button>
+                <button class="pill" onclick="deleteCustomer('${c.id}')" style="margin-left:4px">Xóa</button>
+              </td>
+            </tr>
+          `).join('');
+        }
+      } catch (error) {
+        console.error('Error loading customers:', error);
+        document.getElementById('customersTable').innerHTML = '<tr><td colspan="6" class="empty-state">Lỗi khi tải dữ liệu</td></tr>';
+      }
+    }
+
+    function openModal(type, id) {
+      const backdrop = document.getElementById('modalBackdrop');
+      const content = document.getElementById('modalContent');
+      
+      if (type === 'newCustomer') {
+        editingCustomerId = null;
+        content.innerHTML = `
+          <h3>Thêm khách hàng mới</h3>
+          <form id="customerForm" onsubmit="saveCustomer(event)">
+            <div style="margin-top:10px">
+              <input class="input" name="name" placeholder="Tên khách hàng" required />
+            </div>
+            <div class="form-row" style="margin-top:10px">
+              <input class="input" name="phone" placeholder="Số điện thoại" required />
+              <select class="input" name="type" required>
+                <option value="normal">Thường</option>
+                <option value="member">Thành viên</option>
+                <option value="vip">VIP</option>
+              </select>
+            </div>
+            <div class="modal-actions">
+              <button type="button" onclick="closeModal()" class="pill">Hủy</button>
+              <button type="submit" class="btn">Lưu</button>
+            </div>
+          </form>
+        `;
+      } else if (type === 'editCustomer') {
+        editingCustomerId = id;
+        api.getCustomers().then(customers => {
+          const customer = customers.find(c => c.id === id);
+          if (customer) {
+            content.innerHTML = `
+              <h3>Chỉnh sửa khách hàng</h3>
+              <form id="customerForm" onsubmit="saveCustomer(event)">
+                <div style="margin-top:10px">
+                  <input class="input" name="name" value="${customer.name || ''}" placeholder="Tên khách hàng" required />
+                </div>
+                <div class="form-row" style="margin-top:10px">
+                  <input class="input" name="phone" value="${customer.phone || ''}" placeholder="Số điện thoại" required />
+                  <select class="input" name="type" required>
+                    <option value="normal" ${customer.type === 'normal' ? 'selected' : ''}>Normal</option>
+                    <option value="member" ${customer.type === 'member' ? 'selected' : ''}>Member</option>
+                    <option value="vip" ${customer.type === 'vip' ? 'selected' : ''}>VIP</option>
+                  </select>
+                </div>
+                <div style="margin-top:10px">
+                  <input class="input" type="number" name="points" value="${customer.points || 0}" placeholder="Điểm" />
+                </div>
+                <div class="modal-actions">
+                  <button type="button" onclick="closeModal()" class="pill">Hủy</button>
+                  <button type="submit" class="btn">Cập nhật</button>
+                </div>
+              </form>
+            `;
+          }
+        });
+      }
+      
+      backdrop.style.display = 'flex';
+    }
+
+    async function saveCustomer(event) {
+      event.preventDefault();
+      const form = event.target;
+      const formData = new FormData(form);
+      const customer = {
+        name: formData.get('name'),
+        phone: formData.get('phone'),
+        type: formData.get('type'),
+        points: parseInt(formData.get('points')) || 0
+      };
+
+      try {
+        if (editingCustomerId) {
+          await api.updateCustomer(editingCustomerId, customer);
+        } else {
+          await api.createCustomer(customer);
+        }
+        closeModal();
+        loadCustomers();
+      } catch (error) {
+        alert('Lỗi khi lưu khách hàng: ' + error.message);
+      }
+    }
+
+    async function deleteCustomer(id) {
+      if (confirm('Bạn có chắc muốn xóa khách hàng này?')) {
+        try {
+          await api.deleteCustomer(id);
+          loadCustomers();
+        } catch (error) {
+          alert('Lỗi khi xóa khách hàng: ' + error.message);
+        }
+      }
+    }
+
+    function closeModal(e) {
+      const backdrop = document.getElementById('modalBackdrop');
+      if (e && e.target === backdrop) return;
+      backdrop.style.display = 'none';
+    }
+
+    loadCustomers();
+  </script>
+</body>
+</html>
+

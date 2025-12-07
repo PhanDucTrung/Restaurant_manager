@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hóa đơn</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <section id="orders" class="view">
+    <div class="panel">
+      <h3 style="margin-top:0">Đơn hàng</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="small">Tạo đơn, cập nhật trạng thái</div>
+        <div style="display:flex;gap:8px;">
+          <button class="pill" onclick="loadOrders(); loadData();" title="Làm mới">⟳</button>
+          <button class="btn" onclick="openModal('newOrder')">+ Tạo Đơn</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Mã</th>
+            <th>Bàn</th>
+            <th>Khách</th>
+            <th>Tổng</th>
+            <th>Trạng thái</th>
+            <th>Hành động</th>
+          </tr>
+        </thead>
+        <tbody id="ordersAdmin">
+          <tr><td colspan="6" class="loading">Đang tải...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    </section>
+      <footer>© 2025 Restaurant Manager — Giao diện quản lý nhà hàng</footer>
+    </main>
+  </div>
+
+  <div id="modalBackdrop" class="modal-backdrop" onclick="closeModal(event)">
+    <div id="modalContent" class="modal" onclick="event.stopPropagation()"></div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    let tables = [];
+    let customers = [];
+    let menuItems = [];
+
+    async function loadData() {
+      try {
+        [tables, customers, menuItems] = await Promise.all([
+          api.getTables(),
+          api.getCustomers(),
+          api.getActiveMenuItems()
+        ]);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      }
+    }
+
+    async function loadOrders() {
+      try {
+        const orders = await api.getOrders();
+        const tbody = document.getElementById('ordersAdmin');
+        
+        if (orders.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Chưa có đơn hàng nào</td></tr>';
+        } else {
+          tbody.innerHTML = orders.map(o => `
+            <tr>
+              <td>${o.id || '-'}</td>
+              <td>${o.table?.name || '-'}</td>
+              <td>${o.customer?.name || '-'}</td>
+              <td>₫ ${(parseFloat(o.totalAmount) || 0).toLocaleString('vi-VN')}</td>
+              <td><span class="status-${o.status}">${o.status || '-'}</span></td>
+              <td>
+                <button class="pill" onclick="viewOrder('${o.id}')">Xem</button>
+                <button class="pill" onclick="openModal('editOrder', '${o.id}')" style="margin-left:4px">Sửa</button>
+              </td>
+            </tr>
+          `).join('');
+        }
+      } catch (error) {
+        console.error('Error loading orders:', error);
+        document.getElementById('ordersAdmin').innerHTML = '<tr><td colspan="6" class="empty-state">Lỗi khi tải dữ liệu</td></tr>';
+      }
+    }
+
+    function openModal(type, id) {
+      const backdrop = document.getElementById('modalBackdrop');
+      const content = document.getElementById('modalContent');
+      
+      if (type === 'newOrder') {
+        const tableOptions = tables.map(t => 
+          `<option value="${t.id}">${t.name} - ${t.area}</option>`
+        ).join('');
+        const customerOptions = customers.map(c => 
+          `<option value="${c.id}">${c.name} - ${c.phone}</option>`
+        ).join('');
+        
+        content.innerHTML = `
+          <h3>Tạo đơn hàng mới</h3>
+          <form id="orderForm" onsubmit="saveOrder(event)">
+            <div class="form-row" style="margin-top:10px">
+              <select class="input" name="customerId" required>
+                <option value="">Chọn khách hàng</option>
+                ${customerOptions}
+              </select>
+              <select class="input" name="tableId">
+                <option value="">Chọn bàn (tùy chọn)</option>
+                ${tableOptions}
+              </select>
+            </div>
+            <div style="margin-top:10px">
+              <select class="input" name="orderType" required>
+                <option value="dine_in">Tại chỗ</option>
+                <option value="takeaway">Mang đi</option>
+                <option value="delivery">Giao hàng</option>
+              </select>
+            </div>
+            <div class="modal-actions">
+              <button type="button" onclick="closeModal()" class="pill">Hủy</button>
+              <button type="submit" class="btn">Tạo</button>
+            </div>
+          </form>
+        `;
+      } else if (type === 'viewOrder') {
+        fetch(`${API_BASE_URL}/orders/${id}`)
+          .then(r => r.json())
+          .then(order => {
+            const items = order.orderItems || [];
+            content.innerHTML = `
+              <h3>Đơn ${order.id || ''}</h3>
+              <div style="margin-top:8px">
+                <p><strong>Khách:</strong> ${order.customer?.name || '-'}</p>
+                <p><strong>Bàn:</strong> ${order.table?.name || '-'}</p>
+                <p><strong>Tổng:</strong> ₫ ${(parseFloat(order.totalAmount) || 0).toLocaleString('vi-VN')}</p>
+                <p><strong>Trạng thái:</strong> <span class="status-${order.status}">${order.status || '-'}</span></p>
+                <div style="margin-top:12px">
+                  <strong>Chi tiết:</strong>
+                  <ul>
+                    ${items.map(item => `<li>${item.menuItem?.name || '-'} x${item.quantity} - ₫${(parseFloat(item.price) || 0).toLocaleString('vi-VN')}</li>`).join('')}
+                  </ul>
+                </div>
+              </div>
+              <div class="modal-actions">
+                <button class="btn" onclick="closeModal()">Đóng</button>
+              </div>
+            `;
+          });
+      }
+      
+      backdrop.style.display = 'flex';
+    }
+
+    async function saveOrder(event) {
+      event.preventDefault();
+      const form = event.target;
+      const formData = new FormData(form);
+      const order = {
+        customer: { id: formData.get('customerId') },
+        table: formData.get('tableId') ? { id: formData.get('tableId') } : null,
+        orderType: formData.get('orderType'),
+        status: 'pending',
+        orderItems: []
+      };
+
+      try {
+        await api.createOrder(order);
+        closeModal();
+        loadOrders();
+      } catch (error) {
+        alert('Lỗi khi tạo đơn: ' + error.message);
+      }
+    }
+
+    function viewOrder(id) {
+      openModal('viewOrder', id);
+    }
+
+    function closeModal(e) {
+      const backdrop = document.getElementById('modalBackdrop');
+      if (e && e.target === backdrop) return;
+      backdrop.style.display = 'none';
+    }
+
+    loadData().then(() => loadOrders());
+  </script>
+</body>
+</html>
+
