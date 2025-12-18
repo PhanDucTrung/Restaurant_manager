@@ -39,27 +39,95 @@ src/main/java/com/restaurant/
 - Maven 3.6+
 - MongoDB 4.4+ (đang chạy trên localhost:27017)
 
-### Cấu hình MongoDB
-
-1. Cài đặt MongoDB và đảm bảo MongoDB đang chạy
-2. Cấu hình trong `application.properties`:
-   ```properties
-   spring.data.mongodb.host=localhost
-   spring.data.mongodb.port=27017
-   spring.data.mongodb.database=restaurant_db
-   ```
-
-### Chạy ứng dụng
+### Clone project từ GitHub
 
 ```bash
-# Build project
+git clone https://github.com/PhanDucTrung/Restaurant_manager.git
+cd Restaurant_manager
+```
+
+### Lưu ý quan trọng khi clone về máy khác
+
+#### 1. **Cài đặt MongoDB**
+- Cài đặt MongoDB Community Edition từ [mongodb.com](https://www.mongodb.com/try/download/community)
+- Đảm bảo MongoDB service đang chạy:
+  ```bash
+  # Windows (PowerShell as Administrator)
+  net start MongoDB
+  
+  # Linux/Mac
+  sudo systemctl start mongod
+  # hoặc
+  mongod
+  ```
+
+#### 2. **Kiểm tra và cấu hình MongoDB**
+- Mặc định MongoDB chạy trên `localhost:27017`
+- Nếu MongoDB chạy trên host/port khác, cập nhật trong `src/main/resources/application.properties`:
+  ```properties
+  spring.data.mongodb.host=localhost
+  spring.data.mongodb.port=27017
+  spring.data.mongodb.database=restaurant_db
+  ```
+
+#### 3. **Kiểm tra Java và Maven**
+```bash
+# Kiểm tra Java version (phải >= 17)
+java -version
+
+# Kiểm tra Maven
+mvn -version
+```
+
+#### 4. **Build và chạy project**
+```bash
+# Build project (tải dependencies)
 mvn clean install
 
 # Chạy ứng dụng
 mvn spring-boot:run
 ```
 
-Ứng dụng sẽ chạy tại: `http://localhost:8080`
+#### 5. **Tài khoản đăng nhập mặc định**
+- **Lần đầu đăng nhập**: Sử dụng account `admin` và password `admin`
+- Hệ thống sẽ tự động tạo tài khoản admin nếu chưa tồn tại trong database
+- Sau khi đăng nhập, bạn có thể tạo thêm các tài khoản nhân viên khác
+
+#### 6. **Kiểm tra Port 8080**
+- Ứng dụng mặc định chạy trên port `8080`
+- Nếu port bị chiếm dụng, thay đổi trong `application.properties`:
+  ```properties
+  server.port=8081  # hoặc port khác
+  ```
+
+#### 7. **Database mới vs Database có sẵn**
+- **Database mới**: MongoDB sẽ tự động tạo database `restaurant_db` khi ứng dụng chạy lần đầu
+- **Database có sẵn**: Nếu bạn có backup database, import vào MongoDB:
+  ```bash
+  mongorestore --db restaurant_db <path_to_backup>
+  ```
+
+#### 8. **Truy cập ứng dụng**
+- Frontend: `http://localhost:8080`
+- Login page: `http://localhost:8080/login.html`
+- API Docs (Swagger): `http://localhost:8080/docs`
+
+#### 9. **Xử lý lỗi thường gặp**
+
+**Lỗi: "Connection refused" hoặc "Cannot connect to MongoDB"**
+- Kiểm tra MongoDB service đang chạy
+- Kiểm tra host và port trong `application.properties`
+
+**Lỗi: "Port 8080 already in use"**
+- Đổi port trong `application.properties` hoặc tắt ứng dụng đang dùng port 8080
+
+**Lỗi: "Java version not supported"**
+- Cài đặt Java 17 hoặc cao hơn
+- Kiểm tra `JAVA_HOME` environment variable
+
+**Lỗi: "Maven dependencies not found"**
+- Chạy lại: `mvn clean install -U`
+- Kiểm tra kết nối internet để tải dependencies
 
 ## API Endpoints
 
@@ -279,5 +347,6 @@ categories (1) ───────< (n) menu_items
 .
 
 
-#   R e s t a u r a n t  
+#   R e s t a u r a n t 
+ 
  
