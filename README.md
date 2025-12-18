@@ -1,35 +1,4 @@
-# Hệ Thống Quản Lý Nhà Hàng
 
-Hệ thống quản lý nhà hàng sử dụng Spring Boot và MongoDB.
-
-## Công nghệ sử dụng
-
-- **Java 17**
-- **Spring Boot 3.2.0**
-- **Spring Data MongoDB**
-- **MongoDB**
-- **Maven**
-
-## Cấu trúc dự án
-
-```
-src/main/java/com/restaurant/
-├── RestaurantApplication.java       # Main application class
-├── model/                           # Entity classes
-│   ├── Table.java
-│   ├── Category.java
-│   ├── MenuItem.java
-│   ├── Customer.java
-│   ├── Order.java
-│   ├── OrderItem.java
-│   ├── Payment.java
-│   ├── Employee.java
-│   ├── Inventory.java
-│   └── enums/                       # Enum classes
-├── repository/                      # Repository interfaces
-├── service/                         # Service classes
-└── controller/                      # REST Controllers
-```
 
 ## Cài đặt và chạy
 
@@ -129,6 +98,7 @@ mvn spring-boot:run
 - Chạy lại: `mvn clean install -U`
 - Kiểm tra kết nối internet để tải dependencies
 
+<<<<<<< HEAD
 ## API Endpoints
 
 ### Quản lý Bàn (Tables)
@@ -350,3 +320,5 @@ categories (1) ───────< (n) menu_items
 #   R e s t a u r a n t 
  
  
+=======
+>>>>>>> 6f8d158b72069f12fdfed0380cd54b0e87f6308a
